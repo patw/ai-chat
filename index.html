@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container {
+            display: flex;
+            flex: 1;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 20px;
+            color: #ecf0f1;
+        }
+
+        .sidebar-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar-btn:hover {
+            background: #2980b9;
+        }
+
+        .sidebar-btn.secondary {
+            background: #95a5a6;
+        }
+
+        .sidebar-btn.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .current-config {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid #34495e;
+        }
+
+        .config-item {
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .config-label {
+            color: #bdc3c7;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .config-value {
+            color: #ecf0f1;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        /* Config Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h3 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+        }
+
+        .modal .config-section {
+            margin-bottom: 20px;
+        }
+
+        .modal .config-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .modal .config-section input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            color: #2c3e50;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .modal .config-section textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            color: #2c3e50;
+            font-size: 14px;
+            box-sizing: border-box;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .modal .config-section input:focus,
+        .modal .config-section textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal-btn.primary {
+            background: #27ae60;
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            background: #229954;
+        }
+
+        .modal-btn.secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .modal-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #d5edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Main chat area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            margin-right: auto;
+        }
+
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: #f1f3f4;
+            color: #202124;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .message.assistant .message-time {
+            text-align: left;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 22px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            overflow-y: auto;
+        }
+
+        .chat-input:focus {
+            border-color: #007bff;
+        }
+
+        .send-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #0056b3;
+        }
+
+        .send-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #666;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .model-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2>🤖 AI Chat</h2>
+            
+            <div class="sidebar-buttons">
+                <button class="sidebar-btn" id="newChat">New Chat</button>
+                <button class="sidebar-btn secondary" id="configBtn">Configuration</button>
+            </div>
+            
+            <div class="current-config">
+                <h4>Current Settings</h4>
+                <div class="config-item">
+                    <span class="config-label">API:</span>
+                    <span class="config-value" id="currentBaseUrl">Not configured</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Model:</span>
+                    <span class="config-value" id="currentModel">Not configured</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Status:</span>
+                    <span class="config-value" id="configStatus">❌ Not configured</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h3>AI Chat</h3>
+                <div class="model-info" id="modelInfo">Model: Not configured</div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <div>
+                        <h3>👋 Welcome to AI Chat!</h3>
+                        <p>Configure your API settings and start chatting.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>AI is thinking...</span>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea 
+                        id="chatInput" 
+                        class="chat-input" 
+                        placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div class="modal-overlay" id="configModal">
+        <div class="modal">
+            <h3>⚙️ Configuration</h3>
+            
+            <div id="status"></div>
+            
+            <div class="config-section">
+                <label for="apiKey">API Key:</label>
+                <input type="password" id="apiKey" placeholder="Enter your API key">
+            </div>
+            
+            <div class="config-section">
+                <label for="baseUrl">Base URL:</label>
+                <input type="text" id="baseUrl" placeholder="https://api.anthropic.com">
+            </div>
+            
+            <div class="config-section">
+                <label for="model">Model:</label>
+                <input type="text" id="model" placeholder="e.g. gpt-4, claude-3-sonnet-20240229, llama-2-7b">
+            </div>
+            
+            <div class="config-section">
+                <label for="systemMessage">System Message (optional):</label>
+                <textarea id="systemMessage" placeholder="Enter a system message to define the AI's behavior and personality..."></textarea>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="cancelConfig">Cancel</button>
+                <button class="modal-btn primary" id="saveConfig">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AIChat {
+            constructor() {
+                this.config = {};
+                this.messages = [];
+                this.isLoading = false;
+                
+                this.initializeElements();
+                this.attachEventListeners();
+                this.loadConfiguration();
+            }
+            
+            initializeElements() {
+                this.elements = {
+                    apiKey: document.getElementById('apiKey'),
+                    baseUrl: document.getElementById('baseUrl'),
+                    model: document.getElementById('model'),
+                    systemMessage: document.getElementById('systemMessage'),
+                    saveConfig: document.getElementById('saveConfig'),
+                    cancelConfig: document.getElementById('cancelConfig'),
+                    configBtn: document.getElementById('configBtn'),
+                    newChat: document.getElementById('newChat'),
+                    status: document.getElementById('status'),
+                    configModal: document.getElementById('configModal'),
+                    currentBaseUrl: document.getElementById('currentBaseUrl'),
+                    currentModel: document.getElementById('currentModel'),
+                    configStatus: document.getElementById('configStatus'),
+                    modelInfo: document.getElementById('modelInfo'),
+                    chatMessages: document.getElementById('chatMessages'),
+                    chatInput: document.getElementById('chatInput'),
+                    sendBtn: document.getElementById('sendBtn'),
+                    loading: document.getElementById('loading')
+                };
+            }
+            
+            attachEventListeners() {
+                // Configuration
+                this.elements.configBtn.addEventListener('click', () => this.openConfigModal());
+                this.elements.saveConfig.addEventListener('click', () => this.saveConfiguration());
+                this.elements.cancelConfig.addEventListener('click', () => this.closeConfigModal());
+                this.elements.newChat.addEventListener('click', () => this.newChat());
+                
+                // Modal overlay click to close
+                this.elements.configModal.addEventListener('click', (e) => {
+                    if (e.target === this.elements.configModal) {
+                        this.closeConfigModal();
+                    }
+                });
+                
+                // Escape key to close modal
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.elements.configModal.classList.contains('show')) {
+                        this.closeConfigModal();
+                    }
+                });
+                
+                // Chat input
+                this.elements.chatInput.addEventListener('input', () => this.handleInputChange());
+                this.elements.chatInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                this.elements.sendBtn.addEventListener('click', () => this.sendMessage());
+                
+                // Auto-resize textarea
+                this.elements.chatInput.addEventListener('input', () => {
+                    this.elements.chatInput.style.height = 'auto';
+                    this.elements.chatInput.style.height = Math.min(this.elements.chatInput.scrollHeight, 120) + 'px';
+                });
+            }
+            
+            async loadConfiguration() {
+                try {
+                    this.config = await window.electronAPI.getConfig();
+                    this.updateConfigUI();
+                    this.updateCurrentConfigDisplay();
+                    this.updateModelInfo();
+                } catch (error) {
+                    this.showStatus('Failed to load configuration', 'error');
+                }
+            }
+            
+            updateCurrentConfigDisplay() {
+                if (this.config.baseUrl) {
+                    this.elements.currentBaseUrl.textContent = this.config.baseUrl;
+                } else {
+                    this.elements.currentBaseUrl.textContent = 'Not configured';
+                }
+                
+                if (this.config.model) {
+                    this.elements.currentModel.textContent = this.config.model;
+                } else {
+                    this.elements.currentModel.textContent = 'Not configured';
+                }
+                
+                const isConfigured = this.config.apiKey && this.config.baseUrl && this.config.model;
+                if (isConfigured) {
+                    this.elements.configStatus.textContent = '✅ Ready';
+                } else {
+                    this.elements.configStatus.textContent = '❌ Not configured';
+                }
+            }
+            
+            openConfigModal() {
+                this.updateConfigUI();
+                this.elements.configModal.classList.add('show');
+                this.elements.apiKey.focus();
+            }
+            
+            closeConfigModal() {
+                this.elements.configModal.classList.remove('show');
+                this.hideStatus();
+            }
+            
+            updateConfigUI() {
+                this.elements.apiKey.value = this.config.apiKey || '';
+                this.elements.baseUrl.value = this.config.baseUrl || '';
+                this.elements.model.value = this.config.model || '';
+                this.elements.systemMessage.value = this.config.systemMessage || '';
+            }
+            
+            async saveConfiguration() {
+                const newConfig = {
+                    apiKey: this.elements.apiKey.value.trim(),
+                    baseUrl: this.elements.baseUrl.value.trim(),
+                    model: this.elements.model.value.trim(),
+                    systemMessage: this.elements.systemMessage.value.trim(),
+                    theme: this.config.theme || 'light'
+                };
+                
+                if (!newConfig.apiKey) {
+                    this.showStatus('API Key is required', 'error');
+                    return;
+                }
+                
+                if (!newConfig.baseUrl) {
+                    this.showStatus('Base URL is required', 'error');
+                    return;
+                }
+                
+                if (!newConfig.model) {
+                    this.showStatus('Model name is required', 'error');
+                    return;
+                }
+                
+                try {
+                    const saved = await window.electronAPI.saveConfig(newConfig);
+                    if (saved) {
+                        this.config = newConfig;
+                        this.showStatus('Configuration saved successfully!', 'success');
+                        this.updateCurrentConfigDisplay();
+                        this.updateModelInfo();
+                        
+                        // Close modal after a short delay
+                        setTimeout(() => {
+                            this.closeConfigModal();
+                        }, 1500);
+                    } else {
+                        this.showStatus('Failed to save configuration', 'error');
+                    }
+                } catch (error) {
+                    this.showStatus('Failed to save configuration', 'error');
+                }
+            }
+            
+            updateModelInfo() {
+                if (this.config.model) {
+                    this.elements.modelInfo.textContent = `Model: ${this.config.model}`;
+                } else {
+                    this.elements.modelInfo.textContent = 'Model: Not configured';
+                }
+            }
+            
+            showStatus(message, type) {
+                this.elements.status.textContent = message;
+                this.elements.status.className = `status ${type} show`;
+                
+                setTimeout(() => {
+                    this.hideStatus();
+                }, 3000);
+            }
+            
+            hideStatus() {
+                this.elements.status.classList.remove('show');
+                setTimeout(() => {
+                    this.elements.status.textContent = '';
+                    this.elements.status.className = 'status';
+                }, 300);
+            }
+            
+            handleInputChange() {
+                const hasText = this.elements.chatInput.value.trim().length > 0;
+                const hasConfig = this.config.apiKey && this.config.baseUrl;
+                this.elements.sendBtn.disabled = !hasText || !hasConfig || this.isLoading;
+            }
+            
+            handleKeyDown(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!this.elements.sendBtn.disabled) {
+                        this.sendMessage();
+                    }
+                }
+            }
+            
+            async sendMessage() {
+                if (this.isLoading) return;
+                
+                const message = this.elements.chatInput.value.trim();
+                if (!message) return;
+                
+                if (!this.config.apiKey || !this.config.baseUrl) {
+                    this.showStatus('Please configure API settings first', 'error');
+                    return;
+                }
+                
+                // Clear input and add user message
+                this.elements.chatInput.value = '';
+                this.elements.chatInput.style.height = 'auto';
+                this.addMessage('user', message);
+                
+                // Show loading
+                this.setLoading(true);
+                
+                try {
+                    const response = await this.callAPI(message);
+                    this.addMessage('assistant', response);
+                } catch (error) {
+                    this.addMessage('assistant', `Error: ${error.message}`);
+                    this.showStatus('Failed to send message', 'error');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+            
+            async callAPI(message) {
+                // Build messages array with optional system message
+                let messages = [];
+                
+                // Add system message if configured
+                if (this.config.systemMessage) {
+                    messages.push({ role: 'system', content: this.config.systemMessage });
+                }
+                
+                // Add conversation history
+                messages = messages.concat(this.messages);
+                
+                // Add current user message
+                messages.push({ role: 'user', content: message });
+                
+                const isAnthropic = this.config.baseUrl.includes('anthropic');
+                
+                let apiUrl, headers, body;
+                
+                if (isAnthropic) {
+                    apiUrl = `${this.config.baseUrl.replace(/\/$/, '')}/v1/messages`;
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'x-api-key': this.config.apiKey,
+                        'anthropic-version': '2023-06-01'
+                    };
+                    
+                    // For Anthropic, system message goes in a separate field
+                    body = {
+                        model: this.config.model,
+                        max_tokens: 4000,
+                        messages: [...this.messages, { role: 'user', content: message }]
+                    };
+                    
+                    if (this.config.systemMessage) {
+                        body.system = this.config.systemMessage;
+                    }
+                } else {
+                    // OpenAI-compatible API (including custom endpoints)
+                    apiUrl = `${this.config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.config.apiKey}`
+                    };
+                    body = {
+                        model: this.config.model,
+                        messages: messages,
+                        max_tokens: 4000,
+                        temperature: 0.7
+                    };
+                }
+                
+                const result = await window.electronAPI.makeApiRequest(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+                
+                if (!result.ok) {
+                    throw new Error(result.data?.error?.message || result.error || `HTTP ${result.status}: ${JSON.stringify(result.data)}`);
+                }
+                
+                let responseText;
+                if (isAnthropic) {
+                    if (result.data.content && result.data.content[0] && result.data.content[0].text) {
+                        responseText = result.data.content[0].text;
+                    } else {
+                        throw new Error('Invalid Anthropic response format');
+                    }
+                } else {
+                    if (result.data.choices && result.data.choices[0] && result.data.choices[0].message) {
+                        responseText = result.data.choices[0].message.content;
+                    } else {
+                        throw new Error('Invalid OpenAI response format');
+                    }
+                }
+                
+                if (!responseText) {
+                    throw new Error('Empty response from API');
+                }
+                
+                // Add user and assistant messages to conversation history
+                this.messages.push({ role: 'user', content: message });
+                this.messages.push({ role: 'assistant', content: responseText });
+                
+                return responseText;
+            }
+            
+            addMessage(role, content) {
+                // Remove empty state if it exists
+                const emptyState = this.elements.chatMessages.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = content;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = new Date().toLocaleTimeString();
+                
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(timeDiv);
+                this.elements.chatMessages.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+            }
+            
+            setLoading(loading) {
+                this.isLoading = loading;
+                this.elements.loading.classList.toggle('show', loading);
+                this.handleInputChange(); // Update button state
+            }
+            
+            newChat() {
+                this.messages = [];
+                this.elements.chatMessages.innerHTML = `
+                    <div class="empty-state">
+                        <div>
+                            <h3>👋 Ready for a new conversation!</h3>
+                            <p>Start chatting with your AI assistant.</p>
+                        </div>
+                    </div>
+                `;
+                this.elements.chatInput.focus();
+            }
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new AIChat();
+        });
+    </script>
+</body>
+</html>
