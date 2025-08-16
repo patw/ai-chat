@@ -1170,6 +1170,11 @@
                         }
                     } catch (error) {
                         console.error('Error highlighting code:', error);
+                        // Fallback - just show the raw code
+                        const codeBlocks = this.currentStreamingMessage.contentDiv.querySelectorAll('pre code');
+                        codeBlocks.forEach(block => {
+                            block.innerHTML = block.textContent;
+                        });
                     }
                     
                     // Scroll to bottom
