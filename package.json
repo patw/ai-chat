@@ -36,7 +36,9 @@
       "main.js",
       "preload.js",
       "index.html",
-      "package.json"
+      "package.json",
+      "css/**",
+      "js/**"
     ],
     "mac": {
       "category": "public.app-category.productivity",
