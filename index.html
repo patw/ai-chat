@@ -1067,30 +1067,48 @@
                 // Wrap code blocks with a div that includes a copy button
                 html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
                     try {
+                        // First decode HTML entities
                         const decodedCode = this.decodeHtml(code);
                         // Extract language from class attribute if present
                         const langMatch = attrs.match(/class="language-([^"]+)"/);
                         const lang = langMatch ? langMatch[1] : null;
-                    
-                        // Only try to highlight if we have a valid language definition
-                        if (lang && Prism.languages[lang]) {
+                        
+                        // Escape special characters for the copy button
+                        const escapedCode = this.escapeForTemplateLiteral(decodedCode);
+                        
+                        // For Python specifically, ensure proper handling
+                        if (lang === 'python') {
+                            const highlighted = Prism.highlight(
+                                decodedCode,
+                                Prism.languages.python,
+                                'python'
+                            );
                             return `<div class="code-block-wrapper">
-                                <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
-                                <pre><code${attrs}>${code}</code></pre>
+                                <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${escapedCode}\`)">Copy</button>
+                                <pre><code class="language-python">${highlighted}</code></pre>
                             </div>`;
                         }
-                    
-                        // Fallback to plain text if language not supported
+                        
+                        // For other languages or no language specified
+                        if (lang && Prism.languages[lang]) {
+                            return `<div class="code-block-wrapper">
+                                <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${escapedCode}\`)">Copy</button>
+                                <pre><code class="language-${lang}">${Prism.highlight(decodedCode, Prism.languages[lang], lang)}</code></pre>
+                            </div>`;
+                        }
+                        
+                        // Fallback for unknown languages
                         return `<div class="code-block-wrapper">
-                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
+                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${escapedCode}\`)">Copy</button>
                             <pre><code>${decodedCode}</code></pre>
                         </div>`;
                     } catch (error) {
                         console.error('Error processing code block:', error);
                         // Fallback - render without syntax highlighting
+                        const escapedCode = this.escapeForTemplateLiteral(this.decodeHtml(code));
                         return `<div class="code-block-wrapper">
-                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(code)}\`)">Copy</button>
-                            <pre><code>${code}</code></pre>
+                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${escapedCode}\`)">Copy</button>
+                            <pre><code>${this.decodeHtml(code)}</code></pre>
                         </div>`;
                     }
                 });
@@ -1106,6 +1124,14 @@
             
             escapeBackticks(str) {
                 return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+            }
+            
+            escapeForTemplateLiteral(str) {
+                return str
+                    .replace(/\\/g, '\\\\')
+                    .replace(/`/g, '\\`')
+                    .replace(/\$/g, '\\$')
+                    .replace(/\n/g, '\\n');
             }
             
             copyCode(button, code) {
