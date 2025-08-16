@@ -1065,11 +1065,20 @@
                 
                 // Wrap code blocks with a div that includes a copy button
                 html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
-                    const decodedCode = this.decodeHtml(code);
-                    return `<div class="code-block-wrapper">
-                        <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
-                        <pre><code${attrs}>${code}</code></pre>
-                    </div>`;
+                    try {
+                        const decodedCode = this.decodeHtml(code);
+                        return `<div class="code-block-wrapper">
+                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
+                            <pre><code${attrs}>${code}</code></pre>
+                        </div>`;
+                    } catch (error) {
+                        console.error('Error processing code block:', error);
+                        // Fallback - render without syntax highlighting
+                        return `<div class="code-block-wrapper">
+                            <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(code)}\`)">Copy</button>
+                            <pre><code>${code}</code></pre>
+                        </div>`;
+                    }
                 });
                 
                 return html;
@@ -1139,8 +1148,12 @@
                     // Render markdown for streaming content
                     this.currentStreamingMessage.contentDiv.innerHTML = this.renderMarkdown(this.currentStreamingMessage.content);
                     
-                    // Re-run Prism highlighting for any code blocks
-                    Prism.highlightAllUnder(this.currentStreamingMessage.contentDiv);
+                    // Re-run Prism highlighting for any code blocks with error handling
+                    try {
+                        Prism.highlightAllUnder(this.currentStreamingMessage.contentDiv);
+                    } catch (error) {
+                        console.error('Error highlighting code:', error);
+                    }
                     
                     // Scroll to bottom
                     this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
@@ -1176,8 +1189,12 @@
                 if (role === 'assistant') {
                     // Render markdown for assistant messages
                     contentDiv.innerHTML = this.renderMarkdown(content);
-                    // Run Prism highlighting for any code blocks
-                    Prism.highlightAllUnder(contentDiv);
+                    // Run Prism highlighting for any code blocks with error handling
+                    try {
+                        Prism.highlightAllUnder(contentDiv);
+                    } catch (error) {
+                        console.error('Error highlighting code:', error);
+                    }
                 } else {
                     // Keep user messages as plain text
                     contentDiv.textContent = content;
