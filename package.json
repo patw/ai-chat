@@ -45,15 +45,15 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": "dmg",
-      "icon": "icons/icon.icns"
+      "icon": "icons/mac/icon.icns"
     },
     "win": {
       "target": "nsis",
-      "icon": "icons/icon.ico"
+      "icon": "icons/win/icon.ico"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "icons/icon.png"
+      "icon": "icons/png/512x512.png"
     }
   }
 }
