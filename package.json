@@ -27,7 +27,7 @@
     "node-fetch": "^2.7.0"
   },
   "build": {
-    "appId": "com.yourname.ai-chat",
+    "appId": "ca.dungeons.ai-chat",
     "productName": "AI Chat",
     "directories": {
       "output": "dist"
