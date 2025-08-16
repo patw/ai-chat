@@ -38,6 +38,7 @@
       "preload.js",
       "index.html",
       "package.json",
+      "icon.png",
       "css/**",
       "js/**"
     ],
