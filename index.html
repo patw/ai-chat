@@ -1067,9 +1067,22 @@
                 html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
                     try {
                         const decodedCode = this.decodeHtml(code);
+                        // Extract language from class attribute if present
+                        const langMatch = attrs.match(/class="language-([^"]+)"/);
+                        const lang = langMatch ? langMatch[1] : null;
+                    
+                        // Only try to highlight if we have a valid language definition
+                        if (lang && Prism.languages[lang]) {
+                            return `<div class="code-block-wrapper">
+                                <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
+                                <pre><code${attrs}>${code}</code></pre>
+                            </div>`;
+                        }
+                    
+                        // Fallback to plain text if language not supported
                         return `<div class="code-block-wrapper">
                             <button class="copy-button" onclick="window.aiChat.copyCode(this, \`${this.escapeBackticks(decodedCode)}\`)">Copy</button>
-                            <pre><code${attrs}>${code}</code></pre>
+                            <pre><code>${decodedCode}</code></pre>
                         </div>`;
                     } catch (error) {
                         console.error('Error processing code block:', error);
@@ -1150,7 +1163,10 @@
                     
                     // Re-run Prism highlighting for any code blocks with error handling
                     try {
-                        Prism.highlightAllUnder(this.currentStreamingMessage.contentDiv);
+                        // Only highlight if Prism is loaded and has languages
+                        if (window.Prism && Prism.languages) {
+                            Prism.highlightAllUnder(this.currentStreamingMessage.contentDiv);
+                        }
                     } catch (error) {
                         console.error('Error highlighting code:', error);
                     }
