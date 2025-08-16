@@ -64,6 +64,16 @@ Check the [Releases](https://github.com/patw/ai-chat/releases) page for pre-buil
 - OpenAI API (and compatible endpoints)
 - Any API with OpenAI-compatible interface
 
+## Icon Generation
+
+The application uses platform-specific icons generated from `icon.png`. To regenerate the icons:
+
+```bash
+npx electron-icon-maker --input=icon.png --output=icons
+```
+
+This will create all required icon sizes and formats in the `icons` directory for Windows, Mac, and Linux.
+
 ## Development
 
 ```bash
