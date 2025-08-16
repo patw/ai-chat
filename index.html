@@ -1103,7 +1103,10 @@
                             <pre><code>${decodedCode}</code></pre>
                         </div>`;
                     } catch (error) {
-                        console.error('Error processing code block:', error);
+                        // Suppress specific Prism.js error about tokenizePlaceholders
+                        if (!error.message.includes('tokenizePlaceholders')) {
+                            console.error('Error processing code block:', error);
+                        }
                         // Fallback - render without syntax highlighting
                         const escapedCode = this.escapeForTemplateLiteral(this.decodeHtml(code));
                         return `<div class="code-block-wrapper">
