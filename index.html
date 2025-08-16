@@ -139,7 +139,8 @@
             color: #2c3e50;
         }
 
-        .modal .config-section input {
+        .modal .config-section input,
+        .modal .config-section textarea {
             width: 100%;
             padding: 10px 12px;
             border: 2px solid #e0e0e0;
@@ -151,14 +152,6 @@
         }
 
         .modal .config-section textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 4px;
-            background: white;
-            color: #2c3e50;
-            font-size: 14px;
-            box-sizing: border-box;
             resize: vertical;
             min-height: 80px;
             font-family: inherit;
@@ -272,6 +265,16 @@
             word-wrap: break-word;
             white-space: pre-wrap;
             line-height: 1.4;
+        }
+
+        .message-content.streaming {
+            border-bottom: 2px solid #007bff;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .message.user .message-content {
@@ -513,10 +516,20 @@
                 this.config = {};
                 this.messages = [];
                 this.isLoading = false;
+                this.currentStreamingMessage = null;
+                this.streamingCleanup = null;
                 
                 this.initializeElements();
                 this.attachEventListeners();
+                this.setupStreamingListener();
                 this.loadConfiguration();
+            }
+            
+            setupStreamingListener() {
+                // Set up the streaming chunk listener
+                this.streamingCleanup = window.electronAPI.onStreamingChunk((chunk) => {
+                    this.appendToStreamingMessage(chunk);
+                });
             }
             
             initializeElements() {
@@ -725,21 +738,22 @@
                 this.elements.chatInput.style.height = 'auto';
                 this.addMessage('user', message);
                 
-                // Show loading
+                // Show loading and create streaming message
                 this.setLoading(true);
+                const streamingMessageId = this.addStreamingMessage('assistant');
                 
                 try {
-                    const response = await this.callAPI(message);
-                    this.addMessage('assistant', response);
+                    const response = await this.callStreamingAPI(message);
+                    this.finalizeStreamingMessage(streamingMessageId, response);
                 } catch (error) {
-                    this.addMessage('assistant', `Error: ${error.message}`);
+                    this.finalizeStreamingMessage(streamingMessageId, `Error: ${error.message}`);
                     this.showStatus('Failed to send message', 'error');
                 } finally {
                     this.setLoading(false);
                 }
             }
             
-            async callAPI(message) {
+            async callStreamingAPI(message) {
                 // Build messages array with optional system message
                 let messages = [];
                 
@@ -770,6 +784,7 @@
                     body = {
                         model: this.config.model,
                         max_tokens: 4000,
+                        stream: true,
                         messages: [...this.messages, { role: 'user', content: message }]
                     };
                     
@@ -787,34 +802,22 @@
                         model: this.config.model,
                         messages: messages,
                         max_tokens: 4000,
-                        temperature: 0.7
+                        temperature: 0.7,
+                        stream: true
                     };
                 }
                 
-                const result = await window.electronAPI.makeApiRequest(apiUrl, {
+                const result = await window.electronAPI.makeStreamingRequest(apiUrl, {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(body)
                 });
                 
                 if (!result.ok) {
-                    throw new Error(result.data?.error?.message || result.error || `HTTP ${result.status}: ${JSON.stringify(result.data)}`);
+                    throw new Error(result.error || `HTTP ${result.status}`);
                 }
                 
-                let responseText;
-                if (isAnthropic) {
-                    if (result.data.content && result.data.content[0] && result.data.content[0].text) {
-                        responseText = result.data.content[0].text;
-                    } else {
-                        throw new Error('Invalid Anthropic response format');
-                    }
-                } else {
-                    if (result.data.choices && result.data.choices[0] && result.data.choices[0].message) {
-                        responseText = result.data.choices[0].message.content;
-                    } else {
-                        throw new Error('Invalid OpenAI response format');
-                    }
-                }
+                const responseText = result.fullResponse || '';
                 
                 if (!responseText) {
                     throw new Error('Empty response from API');
@@ -825,6 +828,60 @@
                 this.messages.push({ role: 'assistant', content: responseText });
                 
                 return responseText;
+            }
+            
+            addStreamingMessage(role) {
+                // Remove empty state if it exists
+                const emptyState = this.elements.chatMessages.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                const messageId = 'msg-' + Date.now();
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                messageDiv.id = messageId;
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content streaming';
+                contentDiv.textContent = '';
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = new Date().toLocaleTimeString();
+                
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(timeDiv);
+                this.elements.chatMessages.appendChild(messageDiv);
+                
+                this.currentStreamingMessage = {
+                    id: messageId,
+                    contentDiv: contentDiv,
+                    content: ''
+                };
+                
+                // Scroll to bottom
+                this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+                
+                return messageId;
+            }
+            
+            appendToStreamingMessage(chunk) {
+                if (this.currentStreamingMessage) {
+                    this.currentStreamingMessage.content += chunk;
+                    this.currentStreamingMessage.contentDiv.textContent = this.currentStreamingMessage.content;
+                    
+                    // Scroll to bottom
+                    this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+                }
+            }
+            
+            finalizeStreamingMessage(messageId, finalContent) {
+                if (this.currentStreamingMessage && this.currentStreamingMessage.id === messageId) {
+                    this.currentStreamingMessage.contentDiv.textContent = finalContent || this.currentStreamingMessage.content;
+                    this.currentStreamingMessage.contentDiv.classList.remove('streaming');
+                    this.currentStreamingMessage = null;
+                }
             }
             
             addMessage(role, content) {
